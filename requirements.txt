@@ -13,7 +13,8 @@ ray==1.8.0
 redis==4.0.0
 gym==0.21.0
 tqdm==4.62.3
-torch==1.10.0+cu113
---find-links https://download.pytorch.org/whl/cu113/torch_stable.html
-torchvision==0.11.1
---find-links https://download.pytorch.org/whl/cu113/torch_stable.html
+pingouin==0.5.0
+torch==1.9.0+cu102
+--find-links https://download.pytorch.org/whl/cu102/torch_stable.html
+torchvision==0.9.0
+--find-links https://download.pytorch.org/whl/cu102/torch_stable.html

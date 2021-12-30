@@ -10,7 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 import inspect
 
 def prepare_HCPRest_timeseries(atlas='schaefer400_sub19'):
-    print_prefix = f"[{inspect.getframeinfo(inspect.currentframe()).function}]"
+    prefix = f"[{inspect.getframeinfo(inspect.currentframe()).function}]"
     timeseries_dir = os.path.join('/u4/surprise/YAD_STAGIN', 'data', 'timeseries')
     sessions = ['REST1', 'REST2']
     phase_encodings = ['RL', 'LR']
@@ -22,17 +22,16 @@ def prepare_HCPRest_timeseries(atlas='schaefer400_sub19'):
             timeseries_dict = {}
             for subject in tqdm(file_list, ncols=60):
                 id = subject.split('.')[0]
-                # label = hcp_behavior[target_feat][id]
-                timeseries = pd.read_csv(os.path.join(source_dir, subject), header=None).to_numpy()
+                timeseries = pd.read_csv(os.path.join(source_dir, subject), header=None).to_numpy()  # assumes timesries shape [node x time]
                 timeseries_dict[id] = timeseries
             timeseries_file = f'HCP_{session}_{phase}_{atlas}.pth'
             timeseries_path = os.path.join(timeseries_dir, timeseries_file)
             save(timeseries_dict, timeseries_path)
-            print(f"{print_prefix} {timeseries_file} is saved.")
+            print(f"{prefix} {timeseries_file} is saved.")
     return
 
 def prepare_YADRest_timeseries(atlas='schaefer400_sub19'):
-    print_prefix = f'{inspect.getframeinfo(inspect.currentframe()).function}'
+    prefix = f'{inspect.getframeinfo(inspect.currentframe()).function}'
     source_dir = {
         'Kaist': f'/u3/Data/YAD_TS/Kaist/rest.FIX_clean_NoiseICs_Censoring_afni/timeseries/{atlas.split("_")[0]}-yeo17/Atlas_ROIs.2/incCbll',
         'SNU': f'/u3/Data/YAD_TS/SNU/rest.FIX_clean_NoiseICs_Censoring/timeseries/{atlas.split("_")[0]}-yeo17/Atlas_ROIs.2/incCbll',
@@ -46,17 +45,17 @@ def prepare_YADRest_timeseries(atlas='schaefer400_sub19'):
         print(f"{len(file_list)}")
         for subject in tqdm(file_list, ncols=60):
             id = subject.split('.')[0]
-            timeseries_dict[id] = pd.read_csv(os.path.join(source_dir[site], subject), header=None).to_numpy()
+            timeseries_dict[id] = pd.read_csv(os.path.join(source_dir[site], subject), header=None).to_numpy() # assumes timesries shape [node x time]
     timeseries_file = f'YAD_{atlas}.pth'
     timeseries_path = os.path.join(timeseries_dir, timeseries_file)
     save(timeseries_dict, timeseries_path)
-    print(f"{print_prefix} {timeseries_file} is saved.")
+    print(f"{prefix} {timeseries_file} is saved.")
     return True
 
 ## Dataset class inheriting torch generic "Dataset" class to load HCP resting fMRI data
 class DatasetHCPRest(Dataset):
-    def __init__(self, atlas='schaefer400_sub19', session='REST1', phase_encoding='RL', target_feature='Gender', k_fold=None):
-        print_prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
+    def __init__(self, atlas='schaefer400_sub19', target_feature='Gender', k_fold=None, session='REST1', phase_encoding='RL'):
+        prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
         super().__init__()
         # argparsing
         self.session = session
@@ -73,18 +72,18 @@ class DatasetHCPRest(Dataset):
 
         if not os.path.exists(timeseries_path):    # no cached file --> caching
             file_list = [file for file in os.listdir(source_dir) if file.endswith(f"{session}_{phase_encoding}.419.csv")]
-            print(f"{print_prefix} {session} {phase_encoding} is {len(file_list)}")
+            print(f"{prefix} {session} {phase_encoding} is {len(file_list)}")
             timeseries_dict = {}
             for filename in tqdm(file_list, ncols=60):
                 id = filename.split('.')[0]
-                timeseries_dict[id] = pd.read_csv(os.path.join(source_dir, filename), header=None).to_numpy()
+                timeseries_dict[id] = pd.read_csv(os.path.join(source_dir, filename), header=None).to_numpy() # assumes timesries shape [node x time]
             save(timeseries_dict, timeseries_path)
             self.timeseries_dict = timeseries_dict
-            print(f"{print_prefix} {timeseries_file} is saved.")
+            print(f"{prefix} {timeseries_file} is saved.")
 
         # loading a cached timeseries files
         self.timeseries_dict = load(timeseries_path)
-        print(f"{print_prefix} {timeseries_file} is loaded.")
+        print(f"{prefix} {timeseries_file} is loaded.")
 
         self.num_nodes, self.num_timepoints = list(self.timeseries_dict.values())[0].shape
         self.full_subject_list = list(self.timeseries_dict.keys())
@@ -106,7 +105,7 @@ class DatasetHCPRest(Dataset):
         self.class_names = le.classes_.tolist()
         self.num_classes = len(self.class_names)
         self.full_label_list = [self.labels_dict[subject] for subject in self.full_subject_list]
-        print(f"{print_prefix} Done.")
+        print(f"{prefix} Done.")
 
     def __len__(self):
         return len(self.subject_list) if self.k is not None else len(self.full_subject_list)
@@ -129,9 +128,11 @@ class DatasetHCPRest(Dataset):
 
 
 ## Dataset class inheriting torch generic "Dataset" class to load YAD resting fMRI data
+from tslearn.preprocessing import TimeSeriesResampler
 class DatasetYADRest(Dataset):
-    def __init__(self, atlas='schaefer400_sub19', k_fold=None, target_feature='MaDE'):
-        print_prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
+    resample_size = 150
+    def __init__(self, atlas='schaefer400_sub19', k_fold=None, target_feature='MaDE', resample=True):
+        prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
         super().__init__()
         # argparsing
         self.atlas = atlas
@@ -145,18 +146,24 @@ class DatasetYADRest(Dataset):
 
         if not os.path.exists(timeseries_path):  # no cached file --> caching
             prepare_YADRest_timeseries(atlas=atlas)
-            print(f"{print_prefix} {timeseries_file} is saved.")
+            print(f"{prefix} {timeseries_file} is saved.")
 
         self.timeseries_dict = load(timeseries_path)
-        self.num_timepoints, self.num_nodes = list(self.timeseries_dict.values())[0].shape
         subjects_with_timeseries = set(self.timeseries_dict.keys())
-        print(f"{print_prefix} {timeseries_file} is loaded.")
+        print(f"{prefix} {timeseries_file} is loaded.")
+        if resample:
+            for subject in subjects_with_timeseries:
+                ts = self.timeseries_dict[subject].copy()
+                self.timeseries_dict[subject]=np.squeeze(TimeSeriesResampler(sz=self.resample_size).fit_transform(ts))
+            print(f"{prefix} {timeseries_file} is resampled to {self.resample_size}.")
+        self.num_nodes, self.num_timepoints  = list(self.timeseries_dict.values())[0].shape
+        
 
         # loading the label file
         behavior_df = pd.read_csv(label_path, encoding='CP949').set_index('ID')
         labels_series = behavior_df[target_feature]
         subjects_with_label = set(labels_series.index)
-        print(f"{print_prefix} {label_path} is loaded.")
+        print(f"{prefix} {label_path} is loaded.")
 
         self.full_subject_list = list( subjects_with_timeseries & subjects_with_label )  # conjoint of subjects_with_timeseries & subjects_with_label
         if k_fold is None:
@@ -170,12 +177,12 @@ class DatasetYADRest(Dataset):
         self.labels = le.fit_transform(labels_series).tolist()
         self.labels_dict = { id:label for id,label in zip(labels_series.index.tolist(), self.labels) }
         self.class_names = le.classes_.tolist()
-        print(self.class_names)
+        #print(self.class_names)
         self.num_classes = len(self.class_names)
-        print(self.num_classes)
-        print(self.full_subject_list)
+        #print(self.num_classes)
+        #print(self.full_subject_list)
         self.full_label_list = [self.labels_dict[subject] for subject in self.full_subject_list]
-        print(f"{print_prefix} Done.")
+        print(f"{prefix} Done.")
 
 
 
