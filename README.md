@@ -22,6 +22,6 @@
 please refer the utils/option.py file
 
 ```
-python main.py --dataset=yad_rest --window_siz=25 --window_stride=2 --readout=sero --target=MaDE
+python main.py --dataset=hcp_rest --window_siz=50 --window_stride=3 --readout=sero --target=Gender
 
 ```
