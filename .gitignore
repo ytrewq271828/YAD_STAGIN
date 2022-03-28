@@ -1,5 +1,5 @@
 /result/
-/data/timeseries/*
+/data/timeseries/*.pth
 /.idea/
 
 /stagin/
