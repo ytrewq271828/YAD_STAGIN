@@ -6,20 +6,21 @@ import argparse
 def parse():
     parser = argparse.ArgumentParser(description='SPATIO-TEMPORAL-ATTENTION-GRAPH-ISOMORPHISM-NETWORK')
     parser.add_argument('-s', '--seed', type=int, default=0)
-    parser.add_argument('-n', '--exp_name', type=str, default='stagin_experiment')
+    parser.add_argument('-n', '--exp_name', type=str, default='default')
     parser.add_argument('-k', '--k_fold', type=int, default=5)
     parser.add_argument('-b', '--minibatch_size', type=int, default=3)
 
     parser.add_argument('-ds', '--sourcedir', type=str, default='./data')
     parser.add_argument('-dt', '--targetdir', type=str, default='./result')
 
-    parser.add_argument('--dataset', type=str, default='rest', choices=['rest', 'task'])
+    parser.add_argument('--dataset', type=str, default='yad_rest', choices=['hcp_rest', 'hcp_task', 'yad_rest'])
+    parser.add_argument('--target', type=str, default='MaDE', choices=['Gender', 'MaDE'])
     parser.add_argument('--roi', type=str, default='schaefer', choices=['scahefer', 'aal', 'destrieux', 'harvard_oxford'])
     parser.add_argument('--fwhm', type=float, default=None)
 
-    parser.add_argument('--window_size', type=int, default=50)
-    parser.add_argument('--window_stride', type=int, default=3)
-    parser.add_argument('--dynamic_length', type=int, default=600)
+    parser.add_argument('--window_size', type=int, default=25)
+    parser.add_argument('--window_stride', type=int, default=2)
+    parser.add_argument('--dynamic_length', type=int, default=200)
 
     parser.add_argument('--lr', type=float, default=0.0005)
     parser.add_argument('--max_lr', type=float, default=0.001)
@@ -42,7 +43,11 @@ def parse():
     parser.add_argument('--no_analysis', action='store_true')
 
     argv = parser.parse_args()
-    argv.targetdir = os.path.join(argv.targetdir, argv.exp_name)
+
+    if argv.exp_name=='default':
+        argv.targetdir = os.path.join(argv.targetdir, f"{argv.dataset}_{argv.target}_{argv.readout}_win{ str(argv.window_size) }_stride{ str(argv.window_stride) }")
+    else:
+        argv.targetdir = os.path.join(argv.targetdir, argv.exp_name)
     os.makedirs(argv.targetdir, exist_ok=True)
     with open(os.path.join(argv.targetdir, 'argv.csv'), 'w', newline='') as f:
         writer = csv.writer(f)

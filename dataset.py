@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 import inspect
+from utils.yad_info import * 
 
 def prepare_HCPRest_timeseries(atlas='schaefer400_sub19'):
     prefix = f"[{inspect.getframeinfo(inspect.currentframe()).function}]"
@@ -30,7 +31,7 @@ def prepare_HCPRest_timeseries(atlas='schaefer400_sub19'):
             print(f"{prefix} {timeseries_file} is saved.")
     return
 
-def prepare_YADRest_timeseries(atlas='schaefer400_sub19'):
+def prepare_YADRest_timeseries(atlas='schaefer400_sub19', except_sites=[]):
     prefix = f'{inspect.getframeinfo(inspect.currentframe()).function}'
     source_dir = {
         'Kaist': f'/u3/Data/YAD_TS/Kaist/rest.FIX_clean_NoiseICs_Censoring_afni/timeseries/{atlas.split("_")[0]}-yeo17/Atlas_ROIs.2/incCbll',
@@ -41,12 +42,16 @@ def prepare_YADRest_timeseries(atlas='schaefer400_sub19'):
     timeseries_dir = os.path.join('/u4/surprise/YAD_STAGIN', 'data', 'timeseries')
     timeseries_dict = {}
     for site in source_dir.keys():
-        file_list = [file for file in os.listdir(source_dir[site]) if file.endswith(f".csv")]
-        print(f"{len(file_list)}")
-        for subject in tqdm(file_list, ncols=60):
-            id = subject.split('.')[0]
-            timeseries_dict[id] = pd.read_csv(os.path.join(source_dir[site], subject), header=None).to_numpy() # assumes timesries shape [node x time]
-    timeseries_file = f'YAD_{atlas}.pth'
+        if site not in except_sites:
+            file_list = [file for file in os.listdir(source_dir[site]) if file.endswith(f".csv")]
+            print(f"{len(file_list)}")
+            for subject in tqdm(file_list, ncols=60):
+                id = subject.split('.')[0]
+                timeseries_dict[id] = pd.read_csv(os.path.join(source_dir[site], subject), header=None).to_numpy() # assumes timesries shape [node x time]
+    if len(except_sites)==0:
+        timeseries_file = f'YAD_{atlas}.pth'
+    else:
+        timeseries_file = f"YAD_{atlas}_excepts_{'_'.join(except_sites)}.pth"
     timeseries_path = os.path.join(timeseries_dir, timeseries_file)
     save(timeseries_dict, timeseries_path)
     print(f"{prefix} {timeseries_file} is saved.")
@@ -64,7 +69,7 @@ class DatasetHCPRest(Dataset):
 
         # setting file path
         base_dir = '/u4/surprise/YAD_STAGIN'
-        source_dir = f'/u4/HCP/mean_TS/{atlas.split("_")[0]}-yeo17/Atlas_ROIs.2'
+        source_dir = f"/u4/HCP/mean_TS/{atlas.split('_')[0]}-yeo17/Atlas_ROIs.2"
         label_path = os.path.join(base_dir, 'data', 'behavior', 'HCP_behavior_data.csv')
         timeseries_dir = os.path.join(base_dir,'data', 'timeseries')
         timeseries_file = f'HCP_{session}_{phase_encoding}_{atlas}.pth'
@@ -89,6 +94,7 @@ class DatasetHCPRest(Dataset):
         self.full_subject_list = list(self.timeseries_dict.keys())
         if k_fold is None:
             self.subject_list = self.full_subject_list
+            self.k = 1
         else:
             self.k_fold = StratifiedKFold(k_fold, shuffle=True, random_state=0) if k_fold is not None else None
             self.k = None
@@ -130,7 +136,6 @@ class DatasetHCPRest(Dataset):
 ## Dataset class inheriting torch generic "Dataset" class to load YAD resting fMRI data
 from tslearn.preprocessing import TimeSeriesResampler
 class DatasetYADRest(Dataset):
-    resample_size = 150
     def __init__(self, atlas='schaefer400_sub19', k_fold=None, target_feature='MaDE', resample=True):
         prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
         super().__init__()
@@ -151,12 +156,25 @@ class DatasetYADRest(Dataset):
         self.timeseries_dict = load(timeseries_path)
         subjects_with_timeseries = set(self.timeseries_dict.keys())
         print(f"{prefix} {timeseries_file} is loaded.")
+
         if resample:
-            for subject in subjects_with_timeseries:
-                ts = self.timeseries_dict[subject].copy()
-                self.timeseries_dict[subject]=np.squeeze(TimeSeriesResampler(sz=self.resample_size).fit_transform(ts))
-            print(f"{prefix} {timeseries_file} is resampled to {self.resample_size}.")
-        self.num_nodes, self.num_timepoints  = list(self.timeseries_dict.values())[0].shape
+            resampled_timeseries_file = f'YAD_{atlas}_resampled.pth'
+            resampled_timeseries_path = os.path.join(timeseries_dir, resampled_timeseries_file)
+            if not os.path.exists(resampled_timeseries_path):  # no cached file --> caching
+                for subject in subjects_with_timeseries:
+                    ts = self.timeseries_dict[subject].copy()
+                    site = parse_yad_id(subject)
+                    min_TR_site = min(TR_dict, key=TR_dict.get)
+                    resample_size = int(TR_dict[site]/TR_dict[min_TR_site] * ts.shape[-1])
+                    self.timeseries_dict[subject]=np.squeeze(TimeSeriesResampler(sz=resample_size).fit_transform(ts))
+                save(self.timeseries_dict, resampled_timeseries_path)
+                print(f"{prefix} {timeseries_file} is resampled.")
+            else:
+                self.timeseries_dict = load(resampled_timeseries_path)       
+                print(f"{prefix} {resampled_timeseries_file} is loaded.")
+        subjects_with_timeseries = set(self.timeseries_dict.keys())
+        self.truncate_size = min([ self.timeseries_dict[s].shape[-1] for s in self.timeseries_dict ])
+        self.num_nodes, self.num_timepoints  = list(self.timeseries_dict.values())[0].shape       
         
 
         # loading the label file
@@ -168,6 +186,7 @@ class DatasetYADRest(Dataset):
         self.full_subject_list = list( subjects_with_timeseries & subjects_with_label )  # conjoint of subjects_with_timeseries & subjects_with_label
         if k_fold is None:
             self.subject_list = self.full_subject_list
+            self.k = 1
         else:
             self.k_fold = StratifiedKFold(k_fold, shuffle=True, random_state=0) if k_fold is not None else None
             self.k = None
@@ -192,11 +211,11 @@ class DatasetYADRest(Dataset):
 
     def __getitem__(self, idx):
         subject = self.subject_list[idx]
-        timeseries = self.timeseries_dict[subject]
+        truncate_start = np.random.randint(0, (self.timeseries_dict[subject].shape[-1] - self.truncate_size + 1))
+        timeseries = self.timeseries_dict[subject][:, truncate_start:(truncate_start+self.truncate_size)]
         timeseries = (timeseries - np.mean(timeseries, axis=0, keepdims=True)) / np.std(timeseries, axis=0, keepdims=True)
         label = self.labels_dict[subject]
         return {'id': subject, 'timeseries': tensor(timeseries, dtype=float32), 'label': label}
-
 
     def set_fold(self, fold, train=True):
         assert self.k_fold is not None

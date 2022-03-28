@@ -53,8 +53,8 @@ def train(argv):
         device = torch.device("cpu")
 
     # define dataset
-    if argv.dataset=='hcp_rest': dataset = DatasetHCPRest(atlas='schaefer400_sub19', target_feature='Gender', k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
-    elif argv.dataset=='yad_rest': dataset = DatasetYADRest(atlas='schaefer400_sub19', target_feature='Gender', k_fold=argv.k_fold)
+    if argv.dataset=='hcp_rest': dataset = DatasetHCPRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
+    elif argv.dataset=='yad_rest': dataset = DatasetYADRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold)
     #elif argv.dataset=='task': dataset = DatasetHCPTask(argv.sourcedir, roi=argv.roi, dynamic_length=argv.dynamic_length, k_fold=argv.k_fold)
     #else: raise
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=argv.minibatch_size, shuffle=False, num_workers=4, pin_memory=True)
@@ -111,7 +111,7 @@ def train(argv):
             dataset.set_fold(k, train=True)
             loss_accumulate = 0.0
             reg_ortho_accumulate = 0.0
-            for i, x in enumerate(tqdm(dataloader, ncols=60, desc=f'k:{k} e:{epoch}')):
+            for i, x in enumerate(tqdm(dataloader, ncols=60, desc=f'k:{k+1} e:{epoch+1}')):
                 # process input data -- assumes input shape [minibatch x node x time]
                 print(f"{prefix} timeseries shape: {x['timeseries'].permute(0,2,1).shape}")
                 dyn_a, sampling_points = utils.bold.process_dynamic_fc(x['timeseries'].permute(0,2,1), argv.window_size, argv.window_stride, argv.dynamic_length)
@@ -175,8 +175,8 @@ def test(argv):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # define dataset
-    if argv.dataset=='hcp_rest': dataset = DatasetHCPRest(atlas='schaefer400_sub19', target_feature='Gender', k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
-    elif argv.dataset=='yad_rest': dataset = DatasetYADRest(atlas='schaefer400_sub19', target_feature='Gender', k_fold=argv.k_fold)
+    if argv.dataset=='hcp_rest': dataset = DatasetHCPRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
+    elif argv.dataset=='yad_rest': dataset = DatasetYADRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
     logger = utils.logger.LoggerSTAGIN(argv.k_fold, dataset.num_classes)
 
@@ -206,7 +206,7 @@ def test(argv):
         loss_accumulate = 0.0
         reg_ortho_accumulate = 0.0
         latent_accumulate = []
-        for i, x in enumerate(tqdm(dataloader, ncols=60, desc=f'k:{k}')):
+        for i, x in enumerate(tqdm(dataloader, ncols=60, desc=f'k:{k+1}')):
             with torch.no_grad():
                 # process input data
                 dyn_a, sampling_points = utils.bold.process_dynamic_fc(x['timeseries'].permute(0,2,1), argv.window_size, argv.window_stride)
@@ -270,3 +270,5 @@ def test(argv):
     print(final_metrics)
     summary_writer.close()
     torch.save(logger.get(), os.path.join(argv.targetdir, 'samples.pkl'))
+
+

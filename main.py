@@ -9,7 +9,7 @@ if __name__=='__main__':
     argv = utils.option.parse()
 
     # run and analyze experiment
-    #if not argv.no_train: train(argv)
+    if not argv.no_train: train(argv)
     if not argv.no_test: test(argv)
     
     #if not argv.no_analysis and argv.roi=='schaefer': analyze(argv)
