@@ -136,7 +136,7 @@ class DatasetHCPRest(Dataset):
 ## Dataset class inheriting torch generic "Dataset" class to load YAD resting fMRI data
 from tslearn.preprocessing import TimeSeriesResampler
 class DatasetYADRest(Dataset):
-    def __init__(self, atlas='schaefer400_sub19', k_fold=None, target_feature='MaDE', resample=True):
+    def __init__(self, atlas='schaefer400_sub19', k_fold=None, target_feature='MaDE', resample=True, except_sites=[]):
         prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
         super().__init__()
         # argparsing
@@ -150,28 +150,28 @@ class DatasetYADRest(Dataset):
         timeseries_path = os.path.join(timeseries_dir, timeseries_file)
 
         if not os.path.exists(timeseries_path):  # no cached file --> caching
-            prepare_YADRest_timeseries(atlas=atlas)
+            prepare_YADRest_timeseries(atlas=atlas, except_sites=except_sites)
             print(f"{prefix} {timeseries_file} is saved.")
 
         self.timeseries_dict = load(timeseries_path)
         subjects_with_timeseries = set(self.timeseries_dict.keys())
         print(f"{prefix} {timeseries_file} is loaded.")
 
-        if resample:
-            resampled_timeseries_file = f'YAD_{atlas}_resampled.pth'
-            resampled_timeseries_path = os.path.join(timeseries_dir, resampled_timeseries_file)
-            if not os.path.exists(resampled_timeseries_path):  # no cached file --> caching
-                for subject in subjects_with_timeseries:
-                    ts = self.timeseries_dict[subject].copy()
-                    site = parse_yad_id(subject)
-                    min_TR_site = min(TR_dict, key=TR_dict.get)
-                    resample_size = int(TR_dict[site]/TR_dict[min_TR_site] * ts.shape[-1])
-                    self.timeseries_dict[subject]=np.squeeze(TimeSeriesResampler(sz=resample_size).fit_transform(ts))
-                save(self.timeseries_dict, resampled_timeseries_path)
-                print(f"{prefix} {timeseries_file} is resampled.")
-            else:
-                self.timeseries_dict = load(resampled_timeseries_path)       
-                print(f"{prefix} {resampled_timeseries_file} is loaded.")
+        resampled_timeseries_file = f'YAD_{atlas}_resampled.pth'
+        resampled_timeseries_path = os.path.join(timeseries_dir, resampled_timeseries_file)
+        if not os.path.exists(resampled_timeseries_path):  # no cached file --> caching
+            for subject in subjects_with_timeseries:
+                ts = self.timeseries_dict[subject].copy()
+                site = parse_yad_id(subject)
+                min_TR_site = min(TR_dict, key=TR_dict.get)
+                resample_size = int(TR_dict[site]/TR_dict[min_TR_site] * ts.shape[-1])
+                self.timeseries_dict[subject]=np.squeeze(TimeSeriesResampler(sz=resample_size).fit_transform(ts))
+            save(self.timeseries_dict, resampled_timeseries_path)
+            print(f"{prefix} {timeseries_file} is resampled.")
+        else:
+            self.timeseries_dict = load(resampled_timeseries_path)       
+            print(f"{prefix} {resampled_timeseries_file} is loaded.")
+        
         subjects_with_timeseries = set(self.timeseries_dict.keys())
         self.truncate_size = min([ self.timeseries_dict[s].shape[-1] for s in self.timeseries_dict ])
         self.num_nodes, self.num_timepoints  = list(self.timeseries_dict.values())[0].shape       

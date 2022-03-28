@@ -15,3 +15,13 @@
 * minibatch size
 * readout
 * cls_token
+
+
+### How to use
+
+please refer the utils/option.py file
+
+```
+python main.py --dataset=yad_rest --window_siz=25 --window_stride=2 --readout=sero --target=MaDE
+
+```
