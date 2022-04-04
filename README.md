@@ -1,22 +1,5 @@
 # YAD_STAGIN
 
-
-### Hyperparameter optimization
-* window length
-* window stride
-* hidden dimension
-* sparsity
-* lr
-* max_lr
-* reg_lambda
-* num layer
-* num_head
-* num_epochs
-* minibatch size
-* readout
-* cls_token
-
-
 ### How to use
 
 please refer the utils/option.py file
@@ -25,6 +8,27 @@ please refer the utils/option.py file
 python main.py --dataset=hcp_rest --window_siz=50 --window_stride=3 --readout=sero --target=Gender
 
 ```
+
+### Hyperparameter optimization
+* window length: [25, 50]
+* window stride: [1, 2, 3]
+* hidden dimension
+* sparsity: [10, 20, 30, 40, 50]
+* lr: [5e-4]
+* max_lr: [1e-3]
+* reg_lambda: [1e-5]
+* num layer: [2, 3, 4, 5]
+* num_head: [1, 3, 5]
+* num_epochs: [30, 50]
+* minibatch size: [3]
+* readout: ['garo', 'sero', 'mean']
+* cls_token: ['sum', 'mean', 'param']
+
+
+### Tasks
+* classification: Gender, MaDE
+* regression: PHQ-9
+
 
 
 ### Current performance
@@ -69,5 +73,3 @@ python main.py --dataset=hcp_rest --window_siz=50 --window_stride=3 --readout=se
 |   yad_rest_schaefer400_sub19_MaDE_sero_win25_stride2_exceptsSamsung | 0.907±0.038 | 0.791±0.124 | 0.891±0.016 | 0.976±0.017 |
 |                  yad_rest_schaefer400_sub19_MaDE_sero_win25_stride3 | 0.900±0.013 | 0.804±0.032 | 0.903±0.059 | 0.960±0.019 |
 
-
-### To DO
