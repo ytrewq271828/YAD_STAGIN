@@ -53,8 +53,11 @@ def train(argv):
         device = torch.device("cpu")
 
     # define dataset
-    if argv.dataset=='hcp_rest': dataset = DatasetHCPRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
-    elif argv.dataset=='yad_rest': dataset = DatasetYADRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold)
+    if argv.dataset=='hcp_rest': 
+        dataset = DatasetHCPRest(atlas=argv.atlas, target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
+    elif argv.dataset=='yad_rest': 
+        dataset = DatasetYADRest(atlas=argv.atlas, target_feature=argv.target, k_fold=argv.k_fold, except_sites=argv.except_sites, except_rois=argv.except_rois)
+        
     #elif argv.dataset=='task': dataset = DatasetHCPTask(argv.sourcedir, roi=argv.roi, dynamic_length=argv.dynamic_length, k_fold=argv.k_fold)
     #else: raise
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=argv.minibatch_size, shuffle=False, num_workers=4, pin_memory=True)
@@ -175,8 +178,11 @@ def test(argv):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # define dataset
-    if argv.dataset=='hcp_rest': dataset = DatasetHCPRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
-    elif argv.dataset=='yad_rest': dataset = DatasetYADRest(atlas='schaefer400_sub19', target_feature=argv.target, k_fold=argv.k_fold)
+    if argv.dataset=='hcp_rest': 
+        dataset = DatasetHCPRest(atlas=argv.atlas, target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
+    elif argv.dataset=='yad_rest': 
+        dataset = DatasetYADRest(atlas=argv.atlas, target_feature=argv.target, k_fold=argv.k_fold, except_sites=argv.except_sites, except_rois=argv.except_rois)
+    
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4, pin_memory=True)
     logger = utils.logger.LoggerSTAGIN(argv.k_fold, dataset.num_classes)
 
@@ -253,14 +259,14 @@ def test(argv):
 
         # finalize fold
         logger.to_csv(argv.targetdir, k)
-        if argv.dataset=='hcp_rest':
-            [np.save(os.path.join(argv.targetdir, 'attention', str(k), f'{key}.npy'), np.concatenate(value)) for key, value in fold_attention.items()]
-        elif argv.dataset=='hcp_task':
+        if argv.dataset=='hcp_task':
             for key, value in fold_attention.items():
                 os.makedirs(os.path.join(argv.targetdir, 'attention', str(k), key), exist_ok=True)
                 for idx, task in enumerate(dataset.task_list):
                     np.save(os.path.join(argv.targetdir, 'attention', str(k), key, f'{task}.npy'), np.concatenate([v for (v, l) in zip(value, samples['true']) if l==idx]))
-
+        else:
+            [np.save(os.path.join(argv.targetdir, 'attention', str(k), f'{key}.npy'), np.concatenate(value)) for key, value in fold_attention.items()]
+        
         np.save(os.path.join(argv.targetdir, 'attention', str(k), 'latent.npy'), np.concatenate(latent_accumulate))
         del fold_attention
 

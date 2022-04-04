@@ -1,4 +1,3 @@
-import os, sys
 from dataset import DatasetHCPRest, DatasetYADRest, prepare_HCPRest_timeseries, prepare_YADRest_timeseries
 import utils
 from experiment import train, test

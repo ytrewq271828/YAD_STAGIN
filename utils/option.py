@@ -12,9 +12,15 @@ def parse():
 
     parser.add_argument('-ds', '--sourcedir', type=str, default='./data')
     parser.add_argument('-dt', '--targetdir', type=str, default='./result')
-
     parser.add_argument('--dataset', type=str, default='yad_rest', choices=['hcp_rest', 'hcp_task', 'yad_rest'])
-    parser.add_argument('--target', type=str, default='MaDE', choices=['Gender', 'MaDE'])
+    
+    parser.add_argument('--except_sites', type=str, nargs='+', default=[])
+    parser.add_argument('--except_rois', action='store_true')
+
+    parser.add_argument('--target', type=str, default='MaDE', choices=['Gender', 'MaDE', 'PHQ9_total'])
+    parser.add_argument('--task', type=str, default='classification', choices=['classification', 'regression'])
+
+    parser.add_argument('--atlas', type=str, default='schaefer400_sub19', choices=['schaefer400_sub19', 'schaefer100_sub19'])
     parser.add_argument('--roi', type=str, default='schaefer', choices=['scahefer', 'aal', 'destrieux', 'harvard_oxford'])
     parser.add_argument('--fwhm', type=float, default=None)
 
@@ -43,9 +49,14 @@ def parse():
     parser.add_argument('--no_analysis', action='store_true')
 
     argv = parser.parse_args()
-
     if argv.exp_name=='default':
-        argv.targetdir = os.path.join(argv.targetdir, f"{argv.dataset}_{argv.target}_{argv.readout}_win{ str(argv.window_size) }_stride{ str(argv.window_stride) }")
+        if len(argv.except_sites)==0:
+            if argv.except_rois:
+                argv.targetdir = os.path.join(argv.targetdir, f"{argv.dataset}_{argv.atlas}_{argv.target}_{argv.readout}_win{ str(argv.window_size) }_stride{ str(argv.window_stride) }_except_rois")
+            else:
+                argv.targetdir = os.path.join(argv.targetdir, f"{argv.dataset}_{argv.atlas}_{argv.target}_{argv.readout}_win{ str(argv.window_size) }_stride{ str(argv.window_stride) }")
+        else:
+            argv.targetdir = os.path.join(argv.targetdir, f"{argv.dataset}_{argv.atlas}_{argv.target}_{argv.readout}_win{ str(argv.window_size) }_stride{ str(argv.window_stride) }_excepts{'_'.join(argv.except_sites)}")
     else:
         argv.targetdir = os.path.join(argv.targetdir, argv.exp_name)
     os.makedirs(argv.targetdir, exist_ok=True)

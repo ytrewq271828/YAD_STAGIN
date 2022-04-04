@@ -129,14 +129,14 @@ class DatasetHCPRest(Dataset):
         train_idx, test_idx = list(self.k_fold.split(self.full_subject_list, self.full_label_list))[fold]
         if train: shuffle(train_idx)
         self.subject_list = [self.full_subject_list[idx] for idx in train_idx] if train else [self.full_subject_list[idx] for idx in test_idx]
-        return
+        return train_idx, test_idx
 
 
 
 ## Dataset class inheriting torch generic "Dataset" class to load YAD resting fMRI data
 from tslearn.preprocessing import TimeSeriesResampler
 class DatasetYADRest(Dataset):
-    def __init__(self, atlas='schaefer400_sub19', k_fold=None, target_feature='MaDE', resample=True, except_sites=[]):
+    def __init__(self, atlas='schaefer400_sub19', k_fold=None, target_feature='MaDE', except_sites=[], except_rois=True):
         prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
         super().__init__()
         # argparsing
@@ -146,9 +146,14 @@ class DatasetYADRest(Dataset):
         base_dir = '/u4/surprise/YAD_STAGIN'
         label_path = os.path.join(base_dir, 'data', 'behavior', 'labelled_modified.csv')
         timeseries_dir = os.path.join(base_dir,'data', 'timeseries')
-        timeseries_file = f'YAD_{atlas}.pth'
+        if len(except_sites)==0:
+            timeseries_file = f'YAD_{atlas}.pth'
+            resampled_timeseries_file = f'YAD_{atlas}_resampled.pth'
+        else:
+            timeseries_file = f"YAD_{atlas}_excepts_{'_'.join(except_sites)}.pth"
+            resampled_timeseries_file = f"YAD_{atlas}_excepts_{'_'.join(except_sites)}_resampled.pth"
         timeseries_path = os.path.join(timeseries_dir, timeseries_file)
-
+        resampled_timeseries_path = os.path.join(timeseries_dir, resampled_timeseries_file)
         if not os.path.exists(timeseries_path):  # no cached file --> caching
             prepare_YADRest_timeseries(atlas=atlas, except_sites=except_sites)
             print(f"{prefix} {timeseries_file} is saved.")
@@ -156,9 +161,7 @@ class DatasetYADRest(Dataset):
         self.timeseries_dict = load(timeseries_path)
         subjects_with_timeseries = set(self.timeseries_dict.keys())
         print(f"{prefix} {timeseries_file} is loaded.")
-
-        resampled_timeseries_file = f'YAD_{atlas}_resampled.pth'
-        resampled_timeseries_path = os.path.join(timeseries_dir, resampled_timeseries_file)
+        
         if not os.path.exists(resampled_timeseries_path):  # no cached file --> caching
             for subject in subjects_with_timeseries:
                 ts = self.timeseries_dict[subject].copy()
@@ -172,6 +175,14 @@ class DatasetYADRest(Dataset):
             self.timeseries_dict = load(resampled_timeseries_path)       
             print(f"{prefix} {resampled_timeseries_file} is loaded.")
         
+        # except rois
+        if except_rois:
+            except_rois_path = "/u3/Data/YAD_TS/excluded_mask_Samsung/ExcludedROIs400.txt"
+            except_rois_index = pd.read_csv(except_rois_path, header=None).values.squeeze()
+            for subject in subjects_with_timeseries:
+                self.timeseries_dict[subject] = np.delete(self.timeseries_dict[subject], except_rois_index, axis=0)
+        
+        # check the metadata
         subjects_with_timeseries = set(self.timeseries_dict.keys())
         self.truncate_size = min([ self.timeseries_dict[s].shape[-1] for s in self.timeseries_dict ])
         self.num_nodes, self.num_timepoints  = list(self.timeseries_dict.values())[0].shape       
@@ -223,4 +234,4 @@ class DatasetYADRest(Dataset):
         train_idx, test_idx = list(self.k_fold.split(self.full_subject_list, self.full_label_list))[fold]
         if train: shuffle(train_idx)
         self.subject_list = [self.full_subject_list[idx] for idx in train_idx] if train else [self.full_subject_list[idx] for idx in test_idx]
-
+        return train_idx, test_idx ######## check that differed after new instantiation
