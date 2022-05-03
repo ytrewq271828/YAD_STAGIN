@@ -54,7 +54,7 @@ def train(argv):
 
     # define dataset
     if argv.dataset=='hcp_rest': 
-        dataset = DatasetHCPRest(atlas=argv.atlas, target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='RL')
+        dataset = DatasetHCPRest(atlas=argv.atlas, target_feature=argv.target, k_fold=argv.k_fold, session='REST1', phase_encoding='LR')
     elif argv.dataset=='yad_rest': 
         dataset = DatasetYADRest(atlas=argv.atlas, target_feature=argv.target, k_fold=argv.k_fold, except_sites=argv.except_sites, except_rois=argv.except_rois)
         

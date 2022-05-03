@@ -59,7 +59,7 @@ def prepare_YADRest_timeseries(atlas='schaefer400_sub19', except_sites=[]):
 
 ## Dataset class inheriting torch generic "Dataset" class to load HCP resting fMRI data
 class DatasetHCPRest(Dataset):
-    def __init__(self, atlas='schaefer400_sub19', target_feature='Gender', k_fold=None, session='REST1', phase_encoding='RL'):
+    def __init__(self, atlas='schaefer400_sub19', target_feature='Gender', k_fold=None, session='REST1', phase_encoding='LR'):
         prefix = f'[{type(self).__name__}.{inspect.getframeinfo(inspect.currentframe()).function}]'
         super().__init__()
         # argparsing
@@ -68,12 +68,14 @@ class DatasetHCPRest(Dataset):
         self.atlas = atlas
 
         # setting file path
-        base_dir = '/u4/surprise/YAD_STAGIN'
+        base_dir = 'C:\\Users\\Junyup Kim\\Desktop\\KAIST\\21Winter\\Research\\YAD_STAGIN'
         source_dir = f"/u4/HCP/mean_TS/{atlas.split('_')[0]}-yeo17/Atlas_ROIs.2"
         label_path = os.path.join(base_dir, 'data', 'behavior', 'HCP_behavior_data.csv')
         timeseries_dir = os.path.join(base_dir,'data', 'timeseries')
         timeseries_file = f'HCP_{session}_{phase_encoding}_{atlas}.pth'
         timeseries_path = os.path.join(timeseries_dir, timeseries_file)
+        print(timeseries_path)
+        print(os.path.exists(timeseries_path))
 
         if not os.path.exists(timeseries_path):    # no cached file --> caching
             file_list = [file for file in os.listdir(source_dir) if file.endswith(f"{session}_{phase_encoding}.419.csv")]
